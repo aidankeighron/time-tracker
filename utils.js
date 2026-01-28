@@ -1,3 +1,6 @@
+// Cross-browser API compatibility
+const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
+
 // Utility functions
 
 /**
@@ -39,7 +42,7 @@ export function getTodayString() {
 export async function getOrCreateDeviceId() {
   const DEVICE_ID_KEY = '__device_id__';
   
-  const result = await chrome.storage.local.get([DEVICE_ID_KEY]);
+  const result = await browserAPI.storage.local.get([DEVICE_ID_KEY]);
   
   if (result[DEVICE_ID_KEY]) {
     return result[DEVICE_ID_KEY];
@@ -50,7 +53,7 @@ export async function getOrCreateDeviceId() {
   const randomStr = Math.random().toString(36).substring(2, 15);
   const deviceId = `${timestamp}-${randomStr}`;
   
-  await chrome.storage.local.set({ [DEVICE_ID_KEY]: deviceId });
+  await browserAPI.storage.local.set({ [DEVICE_ID_KEY]: deviceId });
   console.log('Generated new device ID:', deviceId);
   
   return deviceId;

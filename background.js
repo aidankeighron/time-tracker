@@ -1,3 +1,6 @@
+// Cross-browser API compatibility
+const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
+
 import { getHostname, getTodayString, getOrCreateDeviceId } from './utils.js';
 
 // State to track current active tab
@@ -11,7 +14,7 @@ let config = null;
 
 async function loadConfig() {
   try {
-    const url = chrome.runtime.getURL('config.json');
+    const url = browserAPI.runtime.getURL('config.json');
     const response = await fetch(url);
     config = await response.json();
     console.log('Config loaded');
@@ -54,37 +57,37 @@ async function updateStorage(hostname, duration) {
   const today = getTodayString();
   const key = `${today}::${deviceId}::${hostname}`;
 
-  const result = await chrome.storage.local.get([key]);
+  const result = await browserAPI.storage.local.get([key]);
   const currentTotal = result[key] || 0;
   const newTotal = currentTotal + duration;
 
-  await chrome.storage.local.set({ [key]: newTotal });
+  await browserAPI.storage.local.set({ [key]: newTotal });
   console.log(`Updated ${key}: +${duration}s = ${newTotal}s`);
 }
 
 // Listeners
-chrome.tabs.onActivated.addListener(async (activeInfo) => {
+browserAPI.tabs.onActivated.addListener(async (activeInfo) => {
   stopTracking();
   currentTabId = activeInfo.tabId;
-  const tab = await chrome.tabs.get(currentTabId);
+  const tab = await browserAPI.tabs.get(currentTabId);
   if (tab.url) {
     startTracking(tab.url);
   }
 });
 
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+browserAPI.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (tabId === currentTabId && changeInfo.url) {
     stopTracking();
     startTracking(changeInfo.url);
   }
 });
 
-chrome.windows.onFocusChanged.addListener(async (windowId) => {
-  if (windowId === chrome.windows.WINDOW_ID_NONE) {
+browserAPI.windows.onFocusChanged.addListener(async (windowId) => {
+  if (windowId === browserAPI.windows.WINDOW_ID_NONE) {
     stopTracking();
   } else {
     // Window gained focus, check active tab
-    const tabs = await chrome.tabs.query({ active: true, windowId: windowId });
+    const tabs = await browserAPI.tabs.query({ active: true, windowId: windowId });
     if (tabs.length > 0) {
       stopTracking(); // Ensure we close any previous session
       currentTabId = tabs[0].id;
@@ -96,10 +99,10 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
 });
 
 // Per minute "tick" to save progress so we don't lose too much on crash
-chrome.alarms.create('tracking_tick', { periodInMinutes: 1 });
-chrome.alarms.create('sync_tick', { periodInMinutes: 5 });
+browserAPI.alarms.create('tracking_tick', { periodInMinutes: 1 });
+browserAPI.alarms.create('sync_tick', { periodInMinutes: 5 });
 
-chrome.alarms.onAlarm.addListener(async (alarm) => {
+browserAPI.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'tracking_tick') {
     // If currently tracking, save partial progress and restart timer
     if (currentUrl && startTime) {
@@ -116,7 +119,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 });
 
 // --- Messages ---
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'manual_sync') {
     syncToSupabase().then((result) => {
       sendResponse(result);
@@ -144,7 +147,7 @@ async function syncToSupabase() {
   }
 
   const today = getTodayString();
-  const allData = await chrome.storage.local.get(null);
+  const allData = await browserAPI.storage.local.get(null);
   
   // Filter for today's entries
   const rowsToUpsert = [];

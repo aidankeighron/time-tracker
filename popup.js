@@ -1,3 +1,6 @@
+// Cross-browser API compatibility
+const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
+
 document.addEventListener('DOMContentLoaded', () => {
     const syncBtn = document.getElementById('syncBtn');
     const statusDiv = document.getElementById('status');
@@ -7,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
       statusDiv.textContent = 'Syncing...';
       
       try {
-        const response = await chrome.runtime.sendMessage({ action: 'manual_sync' });
+        const response = await browserAPI.runtime.sendMessage({ action: 'manual_sync' });
         
         if (response && response.success) {
           statusDiv.textContent = 'Sync Successful!';
