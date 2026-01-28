@@ -12,6 +12,9 @@
   "host_permissions": [
     "<all_urls>"
   ],
+  "icons": {
+    "128": "icon.png"
+  },
   "background": {
     "service_worker": "background.js",
     "type": "module"
