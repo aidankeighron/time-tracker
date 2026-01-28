@@ -1,9 +1,10 @@
-import { getHostname, getTodayString } from './utils.js';
+import { getHostname, getTodayString, getOrCreateDeviceId } from './utils.js';
 
 // State to track current active tab
 let currentTabId = null;
 let currentUrl = null;
 let startTime = null;
+let deviceId = null;
 
 // Load config
 let config = null;
@@ -19,7 +20,13 @@ async function loadConfig() {
   }
 }
 
-loadConfig();
+async function initialize() {
+  await loadConfig();
+  deviceId = await getOrCreateDeviceId();
+  console.log('Device ID:', deviceId);
+}
+
+initialize();
 
 // --- Tracking Logic ---
 
@@ -45,7 +52,7 @@ function startTracking(url) {
 
 async function updateStorage(hostname, duration) {
   const today = getTodayString();
-  const key = `${today}::${hostname}`;
+  const key = `${today}::${deviceId}::${hostname}`;
 
   const result = await chrome.storage.local.get([key]);
   const currentTotal = result[key] || 0;
@@ -149,12 +156,19 @@ async function syncToSupabase() {
         continue;
       }
 
-      const website = key.split('::')[1];
+      // Parse key format: date::deviceId::website
+      const parts = key.split('::');
+      if (parts.length !== 3) {
+        continue; // Skip malformed keys
+      }
+      
+      const [, device, website] = parts;
       const minutes = Math.round(val / 60);
 
       rowsToUpsert.push({
         date: today,
         website: website,
+        device: device,
         timespent: minutes // Sending minutes now
       });
     }
