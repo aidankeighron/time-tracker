@@ -108,12 +108,22 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   }
 });
 
+// --- Messages ---
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'manual_sync') {
+    syncToSupabase().then((result) => {
+      sendResponse(result);
+    });
+    return true; // Indicates we response asynchronously
+  }
+});
+
 // --- Sync Logic ---
 
 async function syncToSupabase() {
   if (!config || !config.SUPABASE_URL || !config.SUPABASE_ANON_KEY) {
     console.warn('Supabase config missing');
-    return;
+    return { success: false, error: 'Config missing' };
   }
   
   // Make sure we flush current usage first
@@ -133,18 +143,26 @@ async function syncToSupabase() {
   const rowsToUpsert = [];
   for (const [key, val] of Object.entries(allData)) {
     if (key.startsWith(`${today}::`)) {
+      // val is in seconds.
+      // Filter: Only save if used for longer than 1 minute (60 seconds)
+      if (val < 60) {
+        continue;
+      }
+
       const website = key.split('::')[1];
+      const minutes = Math.round(val / 60);
+
       rowsToUpsert.push({
         date: today,
         website: website,
-        timespent: val
+        timespent: minutes // Sending minutes now
       });
     }
   }
 
   if (rowsToUpsert.length === 0) {
     console.log("No data to sync.");
-    return;
+    return { success: true, message: 'No data to sync' };
   }
 
   console.log(`Syncing ${rowsToUpsert.length} rows to Supabase...`);
@@ -163,10 +181,14 @@ async function syncToSupabase() {
 
     if (response.ok) {
       console.log('Sync successful');
+      return { success: true };
     } else {
-      console.error('Sync failed', await response.text());
+      const errorText = await response.text();
+      console.error('Sync failed', errorText);
+      return { success: false, error: errorText };
     }
   } catch (err) {
     console.error('Network error during sync', err);
+    return { success: false, error: err.message };
   }
 }
